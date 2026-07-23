@@ -7,8 +7,8 @@ import pdfplumber
 from dotenv import load_dotenv
 
 load_dotenv()
-ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL')
-ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+ANTHROPIC_MODEL: str | None = os.getenv('ANTHROPIC_MODEL')
+ANTHROPIC_API_KEY: str | None = os.getenv('ANTHROPIC_API_KEY')
 
 PDF_PATH = "dataset.pdf"
 NUM_QUESTIONS = 5000
@@ -19,6 +19,7 @@ CHUNK_SIZE = 10_000
 
 
 def extract_text(pdf_path: str) -> str:
+    """Extract all text from PDF file, preserving paragraph structure."""
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"[ERROR] File not found: {pdf_path}")
 
@@ -41,7 +42,8 @@ def extract_text(pdf_path: str) -> str:
 
 
 def split_into_chunks(text: str, chunk_size: int) -> list[str]:
-    chunks = []
+    """Split text into chunks, breaking at paragraph boundaries to preserve context."""
+    chunks: list[str] = []
     start = 0
     while start < len(text):
         end = min(start + chunk_size, len(text))
@@ -54,7 +56,8 @@ def split_into_chunks(text: str, chunk_size: int) -> list[str]:
     return [c for c in chunks if c]
 
 
-def generate_qa_for_chunk(client: anthropic.Anthropic, chunk: str, n_questions: int, chunk_index: int, total_chunks: int) -> list[dict]:
+def generate_qa_for_chunk(client: anthropic.Anthropic, chunk: str, n_questions: int, chunk_index: int, total_chunks: int) -> list[dict[str, str]]:
+    """Generate Q&A pairs for a text chunk using Claude API. Returns list of {question, answer} dicts."""
     prompt = textwrap.dedent(f"""
         Below is an excerpt from a document (section {chunk_index} of {total_chunks}).
         Generate exactly {n_questions} question-answer pairs based ONLY on the content of this excerpt.
@@ -104,15 +107,17 @@ def generate_qa_for_chunk(client: anthropic.Anthropic, chunk: str, n_questions: 
 
 
 def distribute_questions(total: int, n_chunks: int) -> list[int]:
-    base = total // n_chunks
-    remainder = total % n_chunks
-    dist = [base] * n_chunks
+    """Evenly distribute target question count across chunks."""
+    base: int = total // n_chunks
+    remainder: int = total % n_chunks
+    dist: list[int] = [base] * n_chunks
     for i in range(remainder):
         dist[i] += 1
     return dist
 
 
-def write_csv(rows: list[dict], output_path: str) -> None:
+def write_csv(rows: list[dict[str, str]], output_path: str) -> None:
+    """Write Q&A pairs to CSV file with question and answer columns."""
     with open(output_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["question", "answer"])
         writer.writeheader()
@@ -120,8 +125,9 @@ def write_csv(rows: list[dict], output_path: str) -> None:
     print(f"[OK] CSV saved to: {output_path}  ({len(rows)} rows)")
 
 
-def main():
-    text = extract_text(PDF_PATH)
+def main() -> None:
+    """Extract text from PDF, generate Q&A pairs, and save to CSV."""
+    text: str = extract_text(PDF_PATH)
     if not text.strip():
         raise ValueError("[ERROR] No text extractable from PDF (might be scanned).")
 

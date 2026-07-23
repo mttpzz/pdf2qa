@@ -5,13 +5,14 @@ from pypdf import PdfWriter, PdfReader
 from pypdf.errors import PdfReadError
 from tqdm import tqdm
 
-FOLDER = Path("pdf").resolve()
-OUTPUT = Path("dataset.pdf")
-SORT_BY = "name"  # "name" = alphabetic | "mtime" = modification date
+FOLDER: Path = Path("pdf").resolve()
+OUTPUT: Path = Path("dataset.pdf")
+SORT_BY: str = "name"
 
 
-def main():
-    pdf_files = sorted(
+def main() -> None:
+    """Merge multiple PDF files from FOLDER directory into a single output PDF."""
+    pdf_files: list[Path] = sorted(
         [p for p in FOLDER.glob("*.pdf") if p.resolve() != OUTPUT.resolve()],
         key=lambda p: p.name.lower() if SORT_BY == "name" else p.stat().st_mtime,
     )
@@ -25,10 +26,10 @@ def main():
     print(f"🔢  Sort by : {SORT_BY}")
     print(f"\n📂  Found {len(pdf_files)} PDF files to merge.\n")
 
-    writer = PdfWriter()
-    ok = []
-    errors = []
-    total_pages = 0
+    writer: PdfWriter = PdfWriter()
+    ok: list[tuple[str, int]] = []
+    errors: list[tuple[str, str]] = []
+    total_pages: int = 0
 
     for pdf_path in tqdm(pdf_files, desc="Merging"):
         try:
@@ -45,12 +46,12 @@ def main():
             print(f"\n  ⚠️  Error on '{pdf_path.name}': {e}", file=sys.stderr)
 
     print(f"\n💾  Writing '{OUTPUT}' ({total_pages} total pages)…")
-    t0 = time.time()
+    t0: float = time.time()
     with open(OUTPUT, "wb") as f:
         writer.write(f)
-    elapsed = time.time() - t0
+    elapsed: float = time.time() - t0
 
-    sep = "─" * 55
+    sep: str = "─" * 55
     print(f"\n{sep}")
     print("  SUMMARY")
     print(sep)
