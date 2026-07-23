@@ -40,6 +40,28 @@ ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 
 Get your API key from [Anthropic Console](https://console.anthropic.com).
 
+### Customization
+
+Edit constants at the top of `pdf2qa.py` to control behavior:
+
+```python
+PDF_PATH = "dataset.pdf"        # Input PDF file
+NUM_QUESTIONS = 5000            # Target Q&A pairs to generate
+OUTPUT_PATH = "dataset.csv"     # Output CSV file
+CHUNK_SIZE = 10_000             # Text chars per chunk (smaller = more focused, slower)
+MAX_TOKENS = 8192               # Max Claude response length
+```
+
+**Note on CHUNK_SIZE:** Smaller chunks (5000) = more focused Q&A, more API calls. Larger chunks (20000) = broader context, fewer calls.
+
+### Pricing
+
+**This tool incurs Claude API costs.** Each PDF chunk generates an API call. Typical cost estimate:
+- 50-page PDF with 100 questions: ~$0.50–$2.00 (depends on chunk overlap)
+- Monitor usage at [Anthropic Console](https://console.anthropic.com/account/usage)
+
+Use `CHUNK_SIZE` and `NUM_QUESTIONS` to control costs.
+
 ## Usage
 
 ### Generate Q&A from a PDF
@@ -86,13 +108,50 @@ You can customize the sort order and output path by editing the variables at the
 | What is the main topic of this document? | The document discusses... |
 | How does the system work? | The system operates by... |
 
+### Multi-Language Support
+
+Claude may generate Q&A in languages other than English. The script automatically handles:
+- English: `question`, `answer` fields
+- Italian: `domanda`, `risposta` fields
+- Other languages: Column names preserved as-is
+
+Example (Italian response):
+```json
+[
+  {"domanda": "Qual è il tema principale?", "risposta": "Il documento tratta..."},
+  {"question": "What is the main topic?", "answer": "The document discusses..."}
+]
+```
+
+Both are correctly exported to the output CSV with their original field names normalized to `question`/`answer`.
+
+## Performance & Time Estimates
+
+Processing time depends on PDF size and API latency:
+- **10-page PDF, 100 questions:** ~1–2 minutes
+- **50-page PDF, 500 questions:** ~5–10 minutes
+- **100+ pages:** 15+ minutes (chunks are processed sequentially)
+
+Each chunk = one API call. Reduce `NUM_QUESTIONS` or increase `CHUNK_SIZE` to speed up processing.
+
+## Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| `FileNotFoundError: dataset.pdf` | PDF file missing | Run `python onepdf.py` or place PDF in current directory |
+| `ANTHROPIC_API_KEY not set` | Missing `.env` file | Create `.env` and add `ANTHROPIC_API_KEY=...` |
+| `response not parseable` | Claude returned invalid JSON | Normal for some chunks; quality Q&A still saved. Increase `MAX_TOKENS` if frequent. |
+| `No text extractable from PDF` | PDF is image-only (scanned) | Use OCR tool first (e.g., Tesseract, Pytesseract) |
+| `Empty dataset.csv` | All chunks failed to parse | Check PDF quality and API key; try reducing `CHUNK_SIZE` |
+| API timeout / rate limits | Too many simultaneous requests | Add delay between chunks or use cheaper model (`claude-3-haiku-*`) |
+
 ## Notes
 
-- Questions are generated based solely on PDF content — no external information is invented
-- Answers are limited to 3-4 sentences for conciseness
-- If a chunk fails to parse, it's skipped with a warning
-- Processing time depends on PDF size and Claude API response time
-- Verify the generated dataset quality before using for fine-tuning
+- Questions generated based solely on PDF content — no external information invented
+- Answers limited to 3-4 sentences for conciseness
+- Skipped chunks logged as warnings; partial dataset still exported
+- Processing time scales linearly with questions requested
+- Verify generated dataset quality before fine-tuning — sample a few Q&A pairs manually
 
 ## Requirements
 
